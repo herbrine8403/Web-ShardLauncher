@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download | ShardLauncher</title>
+
+    <!-- 字体与图标 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+    <style>
+        /* --- 0. 核心变量 (保持一致) --- */
+        :root {
+            --hue: 155;
+            --primary: hsl(var(--hue), 100%, 50%);
+            --accent: #3b82f6;
+            --bg-body: #080808;
+            --bg-surface: #121212;
+            --bg-card: rgba(30, 30, 30, 0.4);
+            --text-main: #ffffff;
+            --text-muted: #9ca3af;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --glass-shine: rgba(255, 255, 255, 0.05);
+            --ease-smooth: cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        [data-theme="light"] {
+            --primary: #059669;
+            --bg-body: #F0F2F5;
+            --bg-surface: #FFFFFF;
+            --bg-card: rgba(255, 255, 255, 0.65);
+            --text-main: #111827;
+            --text-muted: #4b5563;
+            --border-color: rgba(0, 0, 0, 0.06);
+            --glass-shine: linear-gradient(120deg, rgba(255,255,255,0.8), rgba(255,255,255,0.4));
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            min-height: 100vh;
+            display: flex; flex-direction: column;
+            overflow-x: hidden;
+            transition: background-color 0.6s var(--ease-smooth), color 0.4s;
+        }
+
+        /* --- 背景特效 --- */
+        .noise {
+            position: fixed; inset: 0; opacity: 0.035; pointer-events: none; z-index: 900;
+            background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+        .orb {
+            position: fixed; border-radius: 50%; filter: blur(80px); opacity: 0.5; z-index: -1;
+            animation: drift 20s infinite alternate ease-in-out;
+        }
+        .orb-1 { width: 50vw; height: 50vw; background: radial-gradient(circle, var(--primary), transparent 70%); top: -10%; left: -15%; }
+        .orb-2 { width: 40vw; height: 40vw; background: radial-gradient(circle, var(--accent), transparent 70%); bottom: -10%; right: -10%; }
+        @keyframes drift { to { transform: translate(30px, 40px) scale(1.05); } }
+
+        /* --- 导航栏 --- */
+        nav {
+            padding: 24px 6%; display: flex; justify-content: space-between; align-items: center; z-index: 100;
+        }
+        .brand {
+            font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.5rem;
+            color: var(--text-main); text-decoration: none; display: flex; align-items: center; gap: 12px;
+        }
+        .brand img { width: 32px; height: 32px; border-radius: 6px; }
+        .nav-right { display: flex; align-items: center; gap: 16px; }
+        .back-link {
+            color: var(--text-muted); text-decoration: none; font-weight: 500; display: flex; align-items: center; gap: 6px;
+            transition: 0.3s;
+        }
+        .back-link:hover { color: var(--primary); transform: translateX(-4px); }
+
+        /* --- 语言切换器 (Navbar用) --- */
+        .lang-btn {
+            background: transparent; border: 1px solid var(--border-color);
+            color: var(--text-main); width: 42px; height: 42px; border-radius: 50%;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: 0.3s;
+        }
+        .lang-btn:hover { background: var(--text-main); color: var(--bg-body); border-color: transparent; }
+
+        /* --- 下载卡片区域 --- */
+        .download-wrapper {
+            flex: 1; display: flex; align-items: center; justify-content: center;
+            padding: 40px 20px; position: relative; z-index: 10;
+        }
+
+        .download-card {
+            width: 100%; max-width: 500px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 40px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.1);
+            animation: cardUp 0.8s var(--ease-smooth);
+        }
+        @keyframes cardUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card-header { margin-bottom: 30px; text-align: center; }
+        .card-title { font-family: 'Space Grotesk'; font-size: 1.8rem; margin-bottom: 8px; }
+        .card-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 12px; border-radius: 100px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+            background: rgba(255, 50, 50, 0.1); color: #ff4d4d; border: 1px solid rgba(255, 50, 50, 0.2);
+        }
+
+        .build-info {
+            background: rgba(0,0,0,0.2); border-radius: 12px; padding: 16px; margin-bottom: 30px;
+            border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px;
+        }
+        [data-theme="light"] .build-info { background: rgba(255,255,255,0.4); }
+        .info-row { display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--text-muted); }
+        .info-row span:last-child { color: var(--text-main); font-family: monospace; }
+        .commit-msg { font-size: 0.85rem; color: var(--text-muted); font-style: italic; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+
+        .control-group { margin-bottom: 20px; }
+        .label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: 600; }
+
+        /* --- 自定义下拉菜单 (Custom Select) --- */
+        .c-select {
+            position: relative;
+            width: 100%;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .c-select-trigger {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 14px 16px;
+            background: rgba(var(--bg-surface), 0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-main);
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s var(--ease-smooth);
+        }
+
+        .c-select-trigger:hover { border-color: rgba(255,255,255,0.3); }
+        .c-select-trigger i { transition: transform 0.3s; color: var(--text-muted); }
+
+        .c-select.open .c-select-trigger { border-color: var(--primary); }
+        .c-select.open .c-select-trigger i { transform: rotate(180deg); color: var(--primary); }
+
+        .c-options {
+            position: absolute; top: calc(100% + 8px); left: 0; right: 0;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 6px;
+            z-index: 50;
+            opacity: 0; visibility: hidden; transform: translateY(10px);
+            transition: all 0.3s var(--ease-smooth);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            max-height: 250px; overflow-y: auto;
+        }
+
+        .c-select.open .c-options { opacity: 1; visibility: visible; transform: translateY(0); }
+
+        .c-option {
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            transition: 0.2s;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .c-option:hover { background: var(--glass-shine); color: var(--text-main); }
+        .c-option.selected { background: var(--glass-shine); color: var(--primary); font-weight: 600; }
+
+        /* 禁用状态 */
+        .c-select.disabled { opacity: 0.5; pointer-events: none; filter: grayscale(1); }
+
+        /* 下载按钮 */
+        .dl-btn {
+            display: flex; justify-content: center; align-items: center; gap: 10px;
+            width: 100%; padding: 18px; margin-top: 10px;
+            background: var(--text-main); color: var(--bg-body);
+            border: none; border-radius: 100px;
+            font-size: 1rem; font-weight: 700; text-decoration: none;
+            cursor: pointer; transition: 0.3s; position: relative; overflow: hidden;
+        }
+        .dl-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(0,0,0,0.3); }
+        .dl-btn::before {
+            content:''; position: absolute; top:0; left:-100%; width:50%; height:100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+            transform: skewX(-25deg); transition: 0.5s;
+        }
+        .dl-btn:hover::before { left: 150%; transition: 0.7s; }
+
+        .detected-badge {
+            font-size: 0.75rem; color: var(--primary); margin-top: 6px; display: flex; align-items: center; gap: 4px;
+            opacity: 0; transform: translateY(-5px); transition: 0.3s;
+        }
+        .detected-badge.visible { opacity: 1; transform: translateY(0); }
+
+        footer { text-align: center; padding: 20px; font-size: 0.85rem; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+
+<div class="noise"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<nav>
+    <a href="index.html" class="back-link">
+        <i class="ri-arrow-left-line"></i> <span data-i18n="nav.back">Back to Home</span>
+    </a>
+    <div class="nav-right">
+        <!-- 简单的语言切换按钮 (点击循环切换) -->
+        <button class="lang-btn" id="lang-toggle" aria-label="Switch Language">
+            <i class="ri-translate"></i>
+        </button>
+        <div class="brand">
+            <img src="logo.png" alt="S" onerror="this.src='https://avatars.githubusercontent.com/u/148412852?s=50&v=4'">
+            ShardLauncher
+        </div>
+    </div>
+</nav>
+
+<div class="download-wrapper">
+    <div class="download-card">
+        <div class="card-header">
+            <span class="card-badge" data-i18n="dl.snapshot">Dev Snapshot</span>
+            <h1 class="card-title" data-i18n="dl.title">Nightly Build</h1>
+            <p style="color: var(--text-muted); font-size: 0.9rem;" data-i18n="dl.desc">Automatic builds from CI/CD</p>
+        </div>
+
+        <!-- 构建信息 -->
+        <div class="build-info">
+            <div class="info-row">
+                <span data-i18n="info.updated">Updated</span>
+                <span id="build-time">Loading...</span>
+            </div>
+            <div class="info-row">
+                <span data-i18n="info.version">Version</span>
+                <span id="build-hash">...</span>
+            </div>
+            <div class="commit-msg" id="build-msg">Fetching latest commit info...</div>
+        </div>
+
+        <!-- 来源选择 (Custom Select) -->
+        <div class="control-group">
+            <label class="label" data-i18n="lbl.source">Download Source</label>
+            <div class="c-select" id="source-select" data-value="nightly">
+                <div class="c-select-trigger">
+                    <span class="selected-text" data-i18n="opt.src.nightly">Nightly.link (Direct)</span>
+                    <i class="ri-arrow-down-s-line"></i>
+                </div>
+                <div class="c-options">
+                    <div class="c-option selected" data-value="nightly" data-i18n="opt.src.nightly">Nightly.link (Direct)</div>
+                    <div class="c-option" data-value="actions" data-i18n="opt.src.actions">GitHub Actions (Login)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 架构选择 (Custom Select) -->
+        <div class="control-group">
+            <label class="label" data-i18n="lbl.arch">Architecture / File</label>
+            <div class="c-select" id="arch-select" data-value="all">
+                <div class="c-select-trigger">
+                    <span class="selected-text" data-i18n="opt.arch.all">Universal (All Architectures)</span>
+                    <i class="ri-arrow-down-s-line"></i>
+                </div>
+                <div class="c-options">
+                    <div class="c-option selected" data-value="all" data-i18n="opt.arch.all">Universal (All Architectures)</div>
+                    <div class="c-option" data-value="arm64-v8a" data-i18n="opt.arch.arm64">ARM64 (Modern Android)</div>
+                    <div class="c-option" data-value="armeabi-v7a" data-i18n="opt.arch.armv7">ARMv7 (Older Devices)</div>
+                    <div class="c-option" data-value="x86_64" data-i18n="opt.arch.x64">x86_64 (Emulators)</div>
+                    <div class="c-option" data-value="x86" data-i18n="opt.arch.x86">x86</div>
+                </div>
+            </div>
+            <div class="detected-badge" id="auto-detect-msg">
+                <i class="ri-magic-line"></i> <span data-i18n="msg.detected">Detected:</span>&nbsp;<span id="detected-arch-text">ARM64</span>
+            </div>
+        </div>
+
+        <a href="#" class="dl-btn" id="download-btn">
+            <i class="ri-download-cloud-2-fill"></i>
+            <span data-i18n="btn.download">Download APK</span>
+        </a>
+
+        <div style="text-align: center; margin-top: 15px; font-size: 0.8rem; color: var(--text-muted); opacity: 0.7;">
+            <span data-i18n="msg.disclaimer">By downloading, you accept the unstable nature of nightly builds.</span>
+        </div>
+    </div>
+</div>
+
+<footer>
+    &copy; 2023 LanRhyme. ShardLauncher Project.
+</footer>
+
+<script>
+    // --- 0. 多语言资源库 ---
+    const resources = {
+        zh: {
+            "nav.back": "返回首页",
+            "dl.snapshot": "开发快照版",
+            "dl.title": "每夜构建",
+            "dl.desc": "来自 CI/CD 的自动构建版本，包含最新特性。",
+            "info.updated": "更新时间",
+            "info.version": "版本哈希",
+            "lbl.source": "下载来源",
+            "lbl.arch": "设备架构 / 文件",
+            "opt.src.nightly": "Nightly.link (直接下载)",
+            "opt.src.actions": "GitHub Actions (需登录)",
+            "opt.arch.all": "通用版 (兼容所有架构)",
+            "opt.arch.arm64": "ARM64 (现代安卓设备)",
+            "opt.arch.armv7": "ARMv7 (旧款设备)",
+            "opt.arch.x64": "x86_64 (模拟器/PC)",
+            "opt.arch.x86": "x86",
+            "btn.download": "下载 APK",
+            "btn.go_actions": "前往 Actions 页面",
+            "msg.detected": "已识别设备:",
+            "msg.disclaimer": "下载即代表您接受开发版本可能存在的不稳定性。"
+        },
+        en: {
+            "nav.back": "Back to Home",
+            "dl.snapshot": "Dev Snapshot",
+            "dl.title": "Nightly Build",
+            "dl.desc": "Automatic builds from CI/CD pipeline.",
+            "info.updated": "Updated",
+            "info.version": "Version",
+            "lbl.source": "Download Source",
+            "lbl.arch": "Architecture / File",
+            "opt.src.nightly": "Nightly.link (Direct Download)",
+            "opt.src.actions": "GitHub Actions (Login Required)",
+            "opt.arch.all": "Universal (All Architectures)",
+            "opt.arch.arm64": "ARM64 (Modern Android)",
+            "opt.arch.armv7": "ARMv7 (Older Devices)",
+            "opt.arch.x64": "x86_64 (Emulators)",
+            "opt.arch.x86": "x86",
+            "btn.download": "Download APK",
+            "btn.go_actions": "Go to Actions",
+            "msg.detected": "Detected:",
+            "msg.disclaimer": "By downloading, you accept the unstable nature of nightly builds."
+        }
+    };
+
+    // --- 1. 配置区域 ---
+    const CONFIG = {
+        repo: "ShardLauncher/ShardLauncher",
+        workflow: "development.yml",
+        artifacts: {
+            "all": "com.lanrhyme.shardlauncher-all-debug",
+            "arm64-v8a": "com.lanrhyme.shardlauncher-arm64-v8a-debug",
+            "armeabi-v7a": "com.lanrhyme.shardlauncher-armeabi-v7a-debug",
+            "x86_64": "com.lanrhyme.shardlauncher-x86_64-debug",
+            "x86": "com.lanrhyme.shardlauncher-x86-debug"
+        }
+    };
+
+    // --- 2. 状态变量 ---
+    let currentLang = 'en';
+    let currentArch = 'all';
+    let currentSource = 'nightly';
+
+    // --- 3. 自定义下拉菜单逻辑 ---
+    function setupCustomSelects() {
+        const selects = document.querySelectorAll('.c-select');
+
+        selects.forEach(select => {
+            const trigger = select.querySelector('.c-select-trigger');
+            const optionsContainer = select.querySelector('.c-options');
+            const options = select.querySelectorAll('.c-option');
+            const triggerText = select.querySelector('.selected-text');
+
+            // Toggle Open
+            trigger.addEventListener('click', (e) => {
+                if(select.classList.contains('disabled')) return;
+                e.stopPropagation();
+                // Close others
+                document.querySelectorAll('.c-select').forEach(s => {
+                    if (s !== select) s.classList.remove('open');
+                });
+                select.classList.toggle('open');
+            });
+
+            // Option Click
+            options.forEach(opt => {
+                opt.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // Update UI
+                    options.forEach(o => o.classList.remove('selected'));
+                    opt.classList.add('selected');
+
+                    // Update Value
+                    const val = opt.getAttribute('data-value');
+                    const i18nKey = opt.getAttribute('data-i18n');
+
+                    select.setAttribute('data-value', val);
+
+                    // Update Text (Support i18n)
+                    if (resources[currentLang][i18nKey]) {
+                        triggerText.textContent = resources[currentLang][i18nKey];
+                        triggerText.setAttribute('data-i18n', i18nKey); // Keep key for language switch
+                    } else {
+                        triggerText.textContent = opt.textContent;
+                    }
+
+                    select.classList.remove('open');
+
+                    // Trigger Logic
+                    if (select.id === 'source-select') {
+                        currentSource = val;
+                        updateDownloadState();
+                    } else if (select.id === 'arch-select') {
+                        currentArch = val;
+                        // 手动选择后隐藏检测提示
+                        document.getElementById('auto-detect-msg').classList.remove('visible');
+                        updateDownloadState();
+                    }
+                });
+            });
+        });
+
+        // Click Outside to Close
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.c-select').forEach(s => s.classList.remove('open'));
+        });
+    }
+
+    // 更新自定义下拉框的选中项 (用于架构检测)
+    function setCustomSelectValue(selectId, value) {
+        const select = document.getElementById(selectId);
+        if(!select) return;
+
+        const option = select.querySelector(`.c-option[data-value="${value}"]`);
+        if (option) {
+            // Trigger click simulation to update UI and internal state
+            option.click();
+            // Re-open if needed, but here we just want to set value silently usually
+            // but click triggers logic. We might need to override the logic trigger if purely visual,
+            // but for architecture detection, triggering logic is fine.
+        }
+    }
+
+    // --- 4. 翻译逻辑 ---
+    function applyTranslations(lang) {
+        currentLang = lang;
+        const data = resources[lang];
+
+        // 1. 普通文本翻译
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (data[key]) {
+                // 如果是下拉菜单的选中文字，也需要更新
+                if (el.classList.contains('selected-text') || el.classList.contains('c-option')) {
+                    el.textContent = data[key];
+                } else if (el.tagName === 'SPAN' || el.tagName === 'P' || el.tagName === 'H1' || el.tagName === 'A' || el.tagName === 'LABEL') {
+                    el.textContent = data[key];
+                }
+            }
+        });
+
+        // 2. 动态按钮翻译 (Go to Actions vs Download)
+        updateDownloadState();
+    }
+
+    // --- 5. 架构检测 ---
+    function detectArchitecture() {
+        const ua = navigator.userAgent.toLowerCase();
+        let detected = 'all';
+
+        if (ua.includes('aarch64') || ua.includes('arm64') || ua.includes('armv8')) {
+            detected = 'arm64-v8a';
+        } else if (ua.includes('armv7') || ua.includes('armeabi')) {
+            detected = 'armeabi-v7a';
+        } else if (ua.includes('x86_64') || ua.includes('amd64')) {
+            detected = 'x86_64';
+        } else if (ua.includes('x86') || ua.includes('i686')) {
+            detected = 'x86';
+        }
+
+        // 设置自定义组件的值
+        setCustomSelectValue('arch-select', detected);
+
+        // 显示提示
+        if (detected !== 'all') {
+            const labels = { 'arm64-v8a': 'ARM64', 'armeabi-v7a': 'ARMv7', 'x86_64': 'x86_64', 'x86': 'x86' };
+            document.getElementById('detected-arch-text').textContent = labels[detected];
+            document.getElementById('auto-detect-msg').classList.add('visible');
+        }
+    }
+
+    // --- 6. 核心状态更新 ---
+    function updateDownloadState() {
+        const sourceSelect = document.getElementById('source-select');
+        const archSelect = document.getElementById('arch-select');
+        const downloadBtn = document.getElementById('download-btn');
+        const btnText = downloadBtn.querySelector('span');
+        const btnIcon = downloadBtn.querySelector('i');
+        const detectMsg = document.getElementById('auto-detect-msg');
+
+        // 这里的 data-value 是由 Custom Select 逻辑更新的
+        const source = sourceSelect.getAttribute('data-value');
+        const arch = archSelect.getAttribute('data-value');
+
+        if (source === 'actions') {
+            // Actions 模式
+            archSelect.classList.add('disabled');
+            downloadBtn.href = `https://github.com/${CONFIG.repo}/actions`;
+            downloadBtn.target = "_blank";
+
+            btnText.textContent = resources[currentLang]["btn.go_actions"];
+            btnIcon.className = "ri-external-link-line";
+            detectMsg.classList.remove('visible');
+        } else {
+            // Nightly 模式
+            archSelect.classList.remove('disabled');
+
+            const artifactName = CONFIG.artifacts[arch] || CONFIG.artifacts['all'];
+            const dlUrl = `https://nightly.link/${CONFIG.repo}/workflows/${CONFIG.workflow}/master/${artifactName}.zip`;
+
+            downloadBtn.href = dlUrl;
+            downloadBtn.target = "_self";
+
+            // 构造下载按钮文字，这里手动拼接因为 "Download ARM64 APK" 这种动态组合比较多
+            // 简单处理：使用通用下载文本，或者你可以为每种组合添加翻译键
+            btnText.textContent = resources[currentLang]["btn.download"];
+            btnIcon.className = "ri-download-cloud-2-fill";
+        }
+    }
+
+    // --- 7. 获取 Commit ---
+    async function fetchLatestCommit() {
+        try {
+            const res = await fetch(`https://api.github.com/repos/${CONFIG.repo}/commits/master`);
+            if (!res.ok) throw new Error("API Error");
+            const data = await res.json();
+
+            // 简单的时间格式化
+            const date = new Date(data.commit.author.date);
+            const now = new Date();
+            const diffHours = Math.floor((now - date) / (1000 * 60 * 60));
+
+            let timeStr = diffHours + " hours ago";
+            if (currentLang === 'zh') timeStr = diffHours + " 小时前";
+
+            document.getElementById('build-time').textContent = timeStr;
+            document.getElementById('build-hash').textContent = data.sha.substring(0, 7);
+            document.getElementById('build-msg').textContent = data.commit.message;
+        } catch (e) {
+            document.getElementById('build-msg').textContent = "Failed to fetch info";
+        }
+    }
+
+    // --- 8. 初始化 ---
+    document.addEventListener('DOMContentLoaded', () => {
+        // 主题
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
+        // 语言
+        let savedLang = localStorage.getItem('lang') || navigator.language.split('-')[0];
+        if (!resources[savedLang]) savedLang = 'en';
+
+        setupCustomSelects(); // 先初始化 UI 组件
+        applyTranslations(savedLang); // 再应用语言
+
+        // 逻辑
+        detectArchitecture(); // 这会触发一次 updateDownloadState
+        fetchLatestCommit();
+
+        // 语言切换按钮逻辑
+        document.getElementById('lang-toggle').addEventListener('click', () => {
+            const newLang = currentLang === 'en' ? 'zh' : 'en';
+            localStorage.setItem('lang', newLang);
+            applyTranslations(newLang);
+            fetchLatestCommit(); // 重新获取以更新时间格式
+        });
+    });
+
+</script>
+</body>
+</html>
