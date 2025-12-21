@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShardLauncher | Update Designer</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&family=Space+Grotesk:wght@500;700&display=swap"
+        rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #00ff88;
+            --primary-rgb: 0, 255, 136;
+            --bg-body: #080808;
+            --bg-sidebar: #111111;
+            --bg-control: rgba(255, 255, 255, 0.05);
+            --border: rgba(255, 255, 255, 0.1);
+            --text-main: #ffffff;
+            --text-muted: #999;
+            --radius: 12px;
+            --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        [data-theme="light"] {
+            --bg-body: #F2F4F7;
+            --bg-sidebar: #FFFFFF;
+            --bg-control: rgba(0, 0, 0, 0.03);
+            --border: rgba(0, 0, 0, 0.08);
+            --text-main: #111827;
+            --text-muted: #666;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- 侧边栏 & 自定义组件 --- */
+        .sidebar {
+            width: 380px;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            padding: 32px;
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: 10px 0 50px rgba(0, 0, 0, 0.2);
+        }
+
+        .sidebar h2 {
+            font-family: 'Space Grotesk';
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar h2 i {
+            color: var(--primary);
+        }
+
+        .control-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .control-label {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* 统一输入框基础 */
+        input[type="text"],
+        textarea {
+            width: 100%;
+            background: var(--bg-control);
+            border: 1px solid var(--border);
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            color: inherit;
+            font-family: inherit;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        input:focus,
+        textarea:focus {
+            border-color: var(--primary);
+            background: rgba(var(--primary-rgb), 0.05);
+        }
+
+        /* 自定义下拉列表 */
+        .c-select {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .c-select-trigger {
+            padding: 12px 16px;
+            background: var(--bg-control);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .c-select-options {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            background: var(--bg-sidebar);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: 0.3s var(--ease);
+            overflow: hidden;
+        }
+
+        .c-select.open .c-select-options {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .c-option {
+            padding: 12px 16px;
+            transition: 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .c-option:hover {
+            background: var(--primary);
+            color: #000;
+        }
+
+        /* 自定义拾色器 */
+        .color-picker-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--bg-control);
+            padding: 8px 16px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            cursor: pointer;
+        }
+
+        .color-preview {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            background: var(--primary);
+        }
+
+        .color-hex {
+            font-family: 'Space Grotesk';
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        /* 自定义滑动条 */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            margin-top: -7px;
+            box-shadow: 0 0 10px rgba(var(--primary-rgb), 0.5);
+        }
+
+        /* 自定义文件选择 */
+        .c-file-input {
+            border: 2px dashed var(--border);
+            padding: 20px;
+            border-radius: var(--radius);
+            text-align: center;
+            cursor: pointer;
+            transition: 0.3s;
+            background: var(--bg-control);
+        }
+
+        .c-file-input:hover {
+            border-color: var(--primary);
+            background: rgba(var(--primary-rgb), 0.03);
+        }
+
+        .c-file-input i {
+            font-size: 1.5rem;
+            display: block;
+            margin-bottom: 8px;
+            opacity: 0.5;
+        }
+
+        .c-file-input span {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+
+        /* --- 预览区域 --- */
+        .preview-stage {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+            padding: 40px;
+        }
+
+        /* --- 卡片样式 --- */
+        #export-card {
+            background: #0a0a0a;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.6s var(--ease);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #export-card[data-card-theme="light"] {
+            background: #fff;
+            color: #111;
+            border-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .style-minimal {
+            width: 800px;
+            height: 260px;
+            padding: 40px 60px;
+            flex-direction: row !important;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .style-detailed {
+            width: 800px;
+            min-height: 500px;
+            padding: 50px;
+        }
+
+        /* 装饰元素 */
+        .shard {
+            position: absolute;
+            background: var(--primary);
+            filter: blur(50px);
+            opacity: 0.12;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .shard-1 {
+            width: 250px;
+            height: 250px;
+            top: -100px;
+            right: -50px;
+            border-radius: 50%;
+        }
+
+        .shard-2 {
+            width: 150px;
+            height: 150px;
+            bottom: -50px;
+            left: -30px;
+            transform: rotate(45deg);
+        }
+
+        .breathing-glow {
+            position: absolute;
+            width: 40%;
+            height: 40%;
+            background: var(--primary);
+            filter: blur(80px);
+            opacity: 0.08;
+            border-radius: 50%;
+            animation: breathe 4s infinite alternate;
+        }
+
+        @keyframes breathe {
+            from {
+                opacity: 0.05;
+                transform: scale(0.9);
+            }
+
+            to {
+                opacity: 0.12;
+                transform: scale(1.1);
+            }
+        }
+
+        /* 卡片内容布局 */
+        .card-inner {
+            position: relative;
+            z-index: 5;
+            width: 100%;
+        }
+
+        .brand-box {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .logo {
+            width: 85px;
+            height: 85px;
+            border-radius: 18px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .brand-text h1 {
+            font-family: 'Space Grotesk';
+            font-size: 2.2rem;
+            font-weight: 700;
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 4px 12px;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            background: rgba(var(--primary-rgb), 0.1);
+            border-radius: 100px;
+            font-weight: 800;
+            font-size: 0.75rem;
+            margin-top: 6px;
+        }
+
+        .meta-info {
+            text-align: right;
+        }
+
+        .meta-val {
+            font-family: 'Space Grotesk';
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .meta-lab {
+            font-size: 0.7rem;
+            opacity: 0.5;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+            letter-spacing: 1px;
+        }
+
+        .codename {
+            font-size: 1.8rem;
+            color: var(--primary);
+            margin-top: 5px;
+        }
+
+        /* 详尽版独有 */
+        .detailed-content {
+            display: grid;
+            grid-template-columns: 1fr 1.1fr;
+            gap: 40px;
+            margin-top: 40px;
+        }
+
+        .log-box h3 {
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+            opacity: 0.8;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .log-list {
+            font-size: 0.95rem;
+            line-height: 1.7;
+            opacity: 0.7;
+            white-space: pre-wrap;
+        }
+
+        .img-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .img-item {
+            width: 100%;
+            aspect-ratio: 16/10;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .img-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .img-full {
+            grid-column: span 2;
+            aspect-ratio: 16/7;
+        }
+
+        .footer {
+            margin-top: auto;
+            padding-top: 30px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            opacity: 0.3;
+        }
+
+        .btn-export {
+            width: 100%;
+            padding: 16px;
+            border-radius: 14px;
+            border: none;
+            background: var(--primary);
+            color: #000;
+            font-weight: 800;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn-export:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(var(--primary-rgb), 0.3);
+        }
+
+        @media (max-width: 900px) {
+            body {
+                flex-direction: column;
+                height: auto;
+                overflow-y: auto;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+                box-shadow: none;
+                z-index: 10;
+                order: 2;
+            }
+
+            .sidebar h2 {
+                position: sticky;
+                top: 0;
+                background: var(--bg-sidebar);
+                padding: 10px 0;
+                margin-bottom: 20px;
+                z-index: 20;
+            }
+
+            .preview-stage {
+                min-height: 400px;
+                padding: 20px;
+                order: 1;
+                display: block;
+                /* Allow normal scrolling behavior */
+                text-align: center;
+                /* Center the inline-block card */
+                overflow-x: auto;
+            }
+
+            #export-card {
+                display: inline-flex;
+                /* Fix for text-align centering */
+                margin: 20px auto;
+                transform-origin: top center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <aside class="sidebar">
+        <h2><i class="ri-brush-3-fill"></i> Designer</h2>
+
+        <!-- 自定义下拉框：卡片风格 -->
+        <div class="control-group">
+            <label class="control-label">模版样式</label>
+            <div class="c-select" id="style-select">
+                <div class="c-select-trigger"><span>精简版 (Minimal)</span><i class="ri-arrow-down-s-line"></i></div>
+                <div class="c-select-options">
+                    <div class="c-option" data-value="minimal">精简版 (Minimal)</div>
+                    <div class="c-option" data-value="detailed">详尽版 (Detailed)</div>
+                </div>
+                <input type="hidden" id="in-style" value="minimal">
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="control-group">
+                <label class="control-label">版本号</label>
+                <input type="text" id="in-version" value="v1.1.0-Release">
+            </div>
+            <div class="control-group">
+                <label class="control-label">代号</label>
+                <input type="text" id="in-codename" value="NEBULA">
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="control-group">
+                <label class="control-label">类型</label>
+                <input type="text" id="in-type" value="Release">
+            </div>
+            <div class="control-group">
+                <label class="control-label">分支</label>
+                <input type="text" id="in-branch" value="master">
+            </div>
+        </div>
+
+        <div id="panel-detailed" style="display: none;">
+            <div class="control-group">
+                <label class="control-label">更新日志</label>
+                <textarea id="in-logs" rows="4">- 全新自研 UI 组件库渲染<br>- 极致的玻璃拟态光影效果<br>- 修复了已知的 12 个渲染 Bug</textarea>
+            </div>
+            <div class="control-group">
+                <label class="control-label">快照多图预览</label>
+                <div class="c-file-input" onclick="document.getElementById('in-imgs').click()">
+                    <i class="ri-image-add-line"></i>
+                    <span id="file-status">点击上传预览图 (1-3张)</span>
+                </div>
+                <input type="file" id="in-imgs" multiple accept="image/*" style="display: none;">
+            </div>
+        </div>
+
+        <!-- 自定义颜色拾取 -->
+        <div class="control-group">
+            <label class="control-label">主题颜色</label>
+            <div class="color-picker-wrapper" onclick="document.getElementById('in-color').click()">
+                <div class="color-preview" id="preview-box"></div>
+                <div class="color-hex" id="preview-hex">#00FF88</div>
+            </div>
+            <input type="color" id="in-color" value="#00ff88" style="display: none;">
+        </div>
+
+        <!-- 自定义滑动条：圆角 -->
+        <div class="control-group">
+            <label class="control-label">卡片圆角: <span id="val-radius">16</span>px</label>
+            <input type="range" id="in-radius" min="0" max="40" value="16">
+        </div>
+
+        <div class="control-group">
+            <label class="control-label">卡片背色</label>
+            <div class="c-select" id="theme-select">
+                <div class="c-select-trigger"><span>深色模式</span><i class="ri-arrow-down-s-line"></i></div>
+                <div class="c-select-options">
+                    <div class="c-option" data-value="dark">深色模式</div>
+                    <div class="c-option" data-value="light">浅色模式</div>
+                </div>
+                <input type="hidden" id="in-card-theme" value="dark">
+            </div>
+        </div>
+
+        <button class="btn-export" onclick="exportCard()">
+            <i class="ri-camera-fill"></i> 导出高清 PNG
+        </button>
+    </aside>
+
+    <main class="preview-stage">
+        <div id="export-card" class="style-minimal">
+            <div class="shard shard-1"></div>
+            <div class="shard shard-2"></div>
+            <div class="breathing-glow"></div>
+
+            <div class="card-inner brand-box">
+                <img src="logo.png" class="logo"
+                    onerror="this.src='https://avatars.githubusercontent.com/u/148412852?s=200&v=4'">
+                <div class="brand-text">
+                    <h1>ShardLauncher</h1>
+                    <div class="pill" id="out-version">v1.1.0-Release</div>
+                </div>
+            </div>
+
+            <div class="card-inner meta-info">
+                <div class="meta-lab">Update Type</div>
+                <div class="meta-val" id="out-type">Release</div>
+                <div class="meta-lab">Core Branch</div>
+                <div class="meta-val" id="out-branch">master</div>
+                <div class="codename" id="out-codename">NEBULA</div>
+            </div>
+
+            <div class="card-inner detailed-content" id="out-body" style="display: none;">
+                <div class="log-box">
+                    <h3><i class="ri-list-check"></i> CHANGELOG</h3>
+                    <div class="log-list" id="out-logs"></div>
+                </div>
+                <div class="img-grid" id="out-grid"></div>
+            </div>
+
+            <div class="card-inner footer" id="out-footer" style="display: none;">
+                <span>ShardLauncher Open Source Project</span>
+                <span>Refined by LanRhyme</span>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- 模拟自定义组件交互 ---
+        function setupCustomSelect(id, callback) {
+            const select = document.getElementById(id);
+            const trigger = select.querySelector('.c-select-trigger');
+            const options = select.querySelectorAll('.c-option');
+            const input = select.querySelector('input');
+
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                select.classList.toggle('open');
+            });
+
+            options.forEach(opt => {
+                opt.addEventListener('click', () => {
+                    const val = opt.getAttribute('data-value');
+                    const text = opt.innerText;
+                    trigger.querySelector('span').innerText = text;
+                    input.value = val;
+                    select.classList.remove('open');
+                    callback(val);
+                });
+            });
+        }
+
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.c-select').forEach(s => s.classList.remove('open'));
+        });
+
+        // --- 核心同步逻辑 ---
+        function sync() {
+            // 文字同步
+            document.getElementById('out-version').innerText = document.getElementById('in-version').value;
+            document.getElementById('out-codename').innerText = document.getElementById('in-codename').value;
+            document.getElementById('out-type').innerText = document.getElementById('in-type').value;
+            document.getElementById('out-branch').innerText = `${document.getElementById('in-branch').value}`;
+            document.getElementById('out-logs').innerHTML = document.getElementById('in-logs').value.replace(/\n/g, '<br>');
+
+            // 颜色同步
+            const color = document.getElementById('in-color').value;
+            document.documentElement.style.setProperty('--primary', color);
+            document.getElementById('preview-box').style.background = color;
+            document.getElementById('preview-hex').innerText = color.toUpperCase();
+            const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
+            document.documentElement.style.setProperty('--primary-rgb', `${r},${g},${b}`);
+
+            // 滑动条同步
+            const radius = document.getElementById('in-radius').value;
+            document.getElementById('val-radius').innerText = radius;
+            document.getElementById('export-card').style.borderRadius = radius + 'px';
+
+            // 样式切换
+            const style = document.getElementById('in-style').value;
+            const card = document.getElementById('export-card');
+            const panelDetailed = document.getElementById('panel-detailed');
+            const outBody = document.getElementById('out-body');
+            const outFooter = document.getElementById('out-footer');
+
+            if (style === 'minimal') {
+                card.className = 'style-minimal';
+                panelDetailed.style.display = 'none';
+                outBody.style.display = 'none';
+                outFooter.style.display = 'none';
+            } else {
+                card.className = 'style-detailed';
+                panelDetailed.style.display = 'block';
+                outBody.style.display = 'grid';
+                outFooter.style.display = 'flex';
+            }
+
+            // 背色切换
+            card.setAttribute('data-card-theme', document.getElementById('in-card-theme').value);
+        }
+
+        // --- 事件绑定 ---
+        setupCustomSelect('style-select', sync);
+        setupCustomSelect('theme-select', sync);
+        document.querySelectorAll('input, textarea').forEach(el => el.addEventListener('input', sync));
+
+        // 图片多图处理
+        document.getElementById('in-imgs').addEventListener('change', function (e) {
+            const grid = document.getElementById('out-grid');
+            grid.innerHTML = '';
+            const files = Array.from(e.target.files).slice(0, 3);
+            document.getElementById('file-status').innerText = `已选择 ${files.length} 张图片`;
+
+            files.forEach((file, idx) => {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const div = document.createElement('div');
+                    div.className = 'img-item';
+                    if (files.length === 1 || (idx === 0 && files.length === 3)) div.classList.add('img-full');
+                    div.innerHTML = `<img src="${ev.target.result}">`;
+                    grid.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+
+        // --- 导出 PNG ---
+
+        async function exportCard() {
+            const btn = document.querySelector('.btn-export');
+            btn.innerHTML = '<i class="ri-loader-4-line"></i> 生成中...';
+
+            try {
+                const node = document.getElementById('export-card');
+                const scale = 2; // 2x resolution
+
+                const dataUrl = await domtoimage.toPng(node, {
+                    width: node.clientWidth * scale,
+                    height: node.clientHeight * scale,
+                    style: {
+                        transform: `scale(${scale})`,
+                        transformOrigin: 'top left',
+                        width: `${node.clientWidth}px`,
+                        height: `${node.clientHeight}px`
+                    }
+                });
+
+                const link = document.createElement('a');
+                link.download = `UpdateCard-${document.getElementById('in-version').value}.png`;
+                link.href = dataUrl;
+                link.click();
+
+                btn.innerHTML = '<i class="ri-camera-fill"></i> 导出高清 PNG';
+            } catch (error) {
+                console.error('Export failed:', error);
+                btn.innerHTML = '<i class="ri-error-warning-line"></i> 导出失败';
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="ri-camera-fill"></i> 导出高清 PNG';
+                }, 2000);
+            }
+        }
+
+        sync();
+    </script>
+
+</body>
+
+</html>
