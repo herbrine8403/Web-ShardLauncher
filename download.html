@@ -730,8 +730,8 @@
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
             if (data[key]) {
-                // 如果是下拉菜单的选中文字，也需要更新
-                if (el.classList.contains('selected-text') || el.classList.contains('c-option')) {
+                // 如果是下拉菜单的选项，也需要更新
+                if (el.classList.contains('c-option')) {
                     el.textContent = data[key];
                 } else if (el.tagName === 'SPAN' || el.tagName === 'P' || el.tagName === 'H1' || el.tagName === 'A' || el.tagName === 'LABEL') {
                     el.textContent = data[key];
@@ -739,7 +739,45 @@
             }
         });
 
-        // 2. 动态按钮翻译 (Go to Actions vs Download)
+        // 2. 特殊处理：架构选择器的显示文本
+        const archSelect = document.getElementById('arch-select');
+        if (archSelect) {
+            const currentArchValue = archSelect.getAttribute('data-value');
+            const triggerText = archSelect.querySelector('.selected-text');
+            const selectedOption = archSelect.querySelector(`.c-option[data-value="${currentArchValue}"]`);
+            
+            if (triggerText && selectedOption) {
+                const i18nKey = selectedOption.getAttribute('data-i18n');
+                if (i18nKey && data[i18nKey]) {
+                    triggerText.textContent = data[i18nKey];
+                    triggerText.setAttribute('data-i18n', i18nKey);
+                } else {
+                    triggerText.textContent = selectedOption.querySelector('span') ? selectedOption.querySelector('span').textContent : selectedOption.textContent;
+                    triggerText.removeAttribute('data-i18n');
+                }
+            }
+        }
+
+        // 3. 特殊处理：来源选择器的显示文本
+        const sourceSelect = document.getElementById('source-select');
+        if (sourceSelect) {
+            const currentSourceValue = sourceSelect.getAttribute('data-value');
+            const triggerText = sourceSelect.querySelector('.selected-text');
+            const selectedOption = sourceSelect.querySelector(`.c-option[data-value="${currentSourceValue}"]`);
+            
+            if (triggerText && selectedOption) {
+                const i18nKey = selectedOption.getAttribute('data-i18n');
+                if (i18nKey && data[i18nKey]) {
+                    triggerText.textContent = data[i18nKey];
+                    triggerText.setAttribute('data-i18n', i18nKey);
+                } else {
+                    triggerText.textContent = selectedOption.querySelector('span') ? selectedOption.querySelector('span').textContent : selectedOption.textContent;
+                    triggerText.removeAttribute('data-i18n');
+                }
+            }
+        }
+
+        // 4. 动态按钮翻译 (Go to Actions vs Download)
         updateDownloadState();
     }
 
