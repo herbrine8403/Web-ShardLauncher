@@ -877,8 +877,19 @@
     // --- 7. 获取 Commit 与 Release ---
     async function fetchLatestRelease() {
         try {
+            // 尝试使用 GitHub API
             const res = await fetch(`https://api.github.com/repos/${CONFIG.repo}/releases/latest`);
-            if (!res.ok) throw new Error("API Error");
+            
+            if (!res.ok) {
+                if (res.status === 403) { // 速率限制
+                    console.log("GitHub API rate limit reached, using fallback method");
+                    await fetchLatestReleaseFallback();
+                } else {
+                    throw new Error("API Error");
+                }
+                return;
+            }
+            
             const data = await res.json();
 
             const date = new Date(data.published_at);
@@ -913,14 +924,61 @@
                 triggerText.textContent = "No assets found";
             }
         } catch (e) {
+            console.log("Error fetching release via API, trying fallback method");
+            await fetchLatestReleaseFallback();
+        }
+    }
+    
+    // 备用方法：从 GitHub releases 页面解析版本信息
+    async function fetchLatestReleaseFallback() {
+        try {
+            const response = await fetch(`https://github.com/${CONFIG.repo}/releases/latest`);
+            const html = await response.text();
+            
+            // 解析版本号 (查找类似 /releases/tag/v1.2.3 或 /releases/tag/1.2.3 的链接)
+            const versionMatch = html.match(/\/releases\/tag\/([^\/"'>]+)/);
+            const version = versionMatch ? versionMatch[1] : 'Unknown';
+            
+            // 解析发布标题
+            const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/);
+            const title = titleMatch ? titleMatch[1] : 'Latest Release';
+            
+            // 设置页面元素
+            const now = new Date();
+            document.getElementById('release-time').textContent = now.toLocaleDateString(currentLang === 'zh' ? 'zh-CN' : 'en-US');
+            document.getElementById('release-version').textContent = version;
+            document.getElementById('release-msg').textContent = title.includes('Release') ? title : version;
+            
+            // 尝试解析发布说明
+            const bodyMatch = html.match(/<div[^>]*class="markdown-body"[^>]*>([\s\S]*?)<\/div>/);
+            latestReleaseBody = bodyMatch ? bodyMatch[1] : "No release notes provided.";
+            document.getElementById('modal-body-content').textContent = latestReleaseBody;
+            
+            // 设置下载链接到 GitHub releases 页面
+            const triggerText = document.querySelector('#release-asset-select .selected-text');
+            triggerText.textContent = "Visit GitHub Releases";
+            document.getElementById('release-download-btn').href = `https://github.com/${CONFIG.repo}/releases/latest`;
+        } catch (e) {
+            console.error("Fallback method failed:", e);
             document.getElementById('release-msg').textContent = "Failed to fetch release info";
         }
     }
 
     async function fetchLatestCommit() {
         try {
+            // 尝试使用 GitHub API
             const res = await fetch(`https://api.github.com/repos/${CONFIG.repo}/commits/master`);
-            if (!res.ok) throw new Error("API Error");
+            
+            if (!res.ok) {
+                if (res.status === 403) { // 速率限制
+                    console.log("GitHub API rate limit reached, using fallback method");
+                    await fetchLatestCommitFallback();
+                } else {
+                    throw new Error("API Error");
+                }
+                return;
+            }
+            
             const data = await res.json();
 
             const date = new Date(data.commit.author.date);
@@ -940,6 +998,37 @@
             document.getElementById('build-hash').textContent = data.sha.substring(0, 7);
             document.getElementById('build-msg').textContent = data.commit.message;
         } catch (e) {
+            console.log("Error fetching commit via API, trying fallback method");
+            await fetchLatestCommitFallback();
+        }
+    }
+    
+    // 备用方法：从 GitHub 主页解析最新提交信息
+    async function fetchLatestCommitFallback() {
+        try {
+            const response = await fetch(`https://github.com/${CONFIG.repo}`);
+            const html = await response.text();
+            
+            // 解析最新提交哈希 (查找类似 /commit/... 的链接)
+            const commitHashMatch = html.match(/\/commit\/([a-f0-9]{40}|[a-f0-9]{7,})/);
+            const commitHash = commitHashMatch ? commitHashMatch[1].substring(0, 7) : 'Unknown';
+            
+            // 解析最新提交信息
+            const commitMessageMatch = html.match(/<a[^>]*class="Link--primary[^>]*"[^>]*title="([^"]+)"[^>]*>/);
+            const commitMessage = commitMessageMatch ? commitMessageMatch[1] : 'Latest commit';
+            
+            // 设置页面元素
+            document.getElementById('build-hash').textContent = commitHash;
+            document.getElementById('build-msg').textContent = commitMessage;
+            
+            // 设置时间为"最近"
+            if (currentLang === 'zh') {
+                document.getElementById('build-time').textContent = "最近";
+            } else {
+                document.getElementById('build-time').textContent = "Recent";
+            }
+        } catch (e) {
+            console.error("Fallback method failed:", e);
             document.getElementById('build-msg').textContent = "Failed to fetch info";
         }
     }
